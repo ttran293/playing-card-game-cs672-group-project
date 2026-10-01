@@ -1,0 +1,5 @@
+Image: cards.png
+Detected 3 card(s)
+5C: 75.8% | center=(178, 176) | size=56x76
+3D: 75.4% | center=(268, 292) | size=73x53
+JC: 54.8% | center=(178, 176) | size=58x77
