@@ -1,5 +1,6 @@
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
@@ -52,6 +53,50 @@ def intersection_over_union(a, b) -> float:
     return shared / union
 
 
+RANKS = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "JOKER"}
+SUITS = {
+    "C": "clubs",
+    "D": "diamonds",
+    "H": "hearts",
+    "S": "spades",
+}
+
+
+@dataclass
+class Card:
+    label: str
+    rank: str
+    suit: str | None
+    confidence: float
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+def read_card(prediction) -> Card:
+    label = prediction.class_name.upper()
+    if label == "JOKER":
+        rank, suit = "JOKER", None
+    elif label.startswith("10") and label[2:] in SUITS:
+        rank, suit = "10", label[2:]
+    elif len(label) == 2 and label[0] in RANKS and label[1] in SUITS:
+        rank, suit = label[0], label[1]
+    else:
+        raise SystemExit(f"Unrecognized card label: {prediction.class_name}")
+
+    return Card(
+        label=label,
+        rank=rank,
+        suit=suit,
+        confidence=prediction.confidence,
+        x=prediction.x,
+        y=prediction.y,
+        width=prediction.width,
+        height=prediction.height,
+    )
+
+
 def clean_boxes(predictions, overlap_limit=0.5):
     ordered = sorted(predictions, key=lambda card: card.confidence, reverse=True)
     kept = []
@@ -77,10 +122,11 @@ model = get_model(
 
 result = model.infer(image, confidence=0.5)[0]
 detected = list(result.predictions)
-cards = clean_boxes(detected)
-result.predictions = cards
+kept = clean_boxes(detected)
+cards = [read_card(card) for card in kept]
+result.predictions = kept
 detections = sv.Detections.from_inference(result)
-labels = [f"{card.class_name} {card.confidence:.0%}" for card in cards]
+labels = [f"{card.label} {card.confidence:.0%}" for card in cards]
 
 annotated = sv.BoxAnnotator().annotate(scene=image.copy(), detections=detections)
 annotated = sv.LabelAnnotator().annotate(
@@ -98,8 +144,10 @@ lines = [
     f"Kept {len(cards)} after removing stacked boxes",
 ]
 for card in cards:
+    suit = SUITS[card.suit] if card.suit else "none"
     lines.append(
-        f"{card.class_name}: {card.confidence:.1%} "
+        f"{card.label} → rank {card.rank}, suit {suit} "
+        f"| {card.confidence:.1%} "
         f"| center=({card.x:.0f}, {card.y:.0f}) "
         f"| size={card.width:.0f}x{card.height:.0f}"
     )
