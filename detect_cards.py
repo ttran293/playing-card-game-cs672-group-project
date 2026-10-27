@@ -36,6 +36,35 @@ def resolve_image() -> Path:
     )
 
 
+def intersection_over_union(a, b) -> float:
+    a_left, a_top = a.x - a.width / 2, a.y - a.height / 2
+    a_right, a_bottom = a.x + a.width / 2, a.y + a.height / 2
+    b_left, b_top = b.x - b.width / 2, b.y - b.height / 2
+    b_right, b_bottom = b.x + b.width / 2, b.y + b.height / 2
+
+    shared_width = min(a_right, b_right) - max(a_left, b_left)
+    shared_height = min(a_bottom, b_bottom) - max(a_top, b_top)
+    if shared_width <= 0 or shared_height <= 0:
+        return 0.0
+
+    shared = shared_width * shared_height
+    union = a.width * a.height + b.width * b.height - shared
+    return shared / union
+
+
+def clean_boxes(predictions, overlap_limit=0.5):
+    ordered = sorted(predictions, key=lambda card: card.confidence, reverse=True)
+    kept = []
+    for card in ordered:
+        if any(
+            intersection_over_union(card, previous) >= overlap_limit
+            for previous in kept
+        ):
+            continue
+        kept.append(card)
+    return kept
+
+
 image_path = resolve_image()
 image = cv2.imread(str(image_path))
 if image is None:
@@ -47,11 +76,11 @@ model = get_model(
 )
 
 result = model.infer(image, confidence=0.5)[0]
+detected = list(result.predictions)
+cards = clean_boxes(detected)
+result.predictions = cards
 detections = sv.Detections.from_inference(result)
-labels = [
-    f"{card.class_name} {card.confidence:.0%}"
-    for card in result.predictions
-]
+labels = [f"{card.class_name} {card.confidence:.0%}" for card in cards]
 
 annotated = sv.BoxAnnotator().annotate(scene=image.copy(), detections=detections)
 annotated = sv.LabelAnnotator().annotate(
@@ -63,8 +92,12 @@ result_text = image_path.with_name(f"{image_path.stem}_result.txt")
 if not cv2.imwrite(str(result_image), annotated):
     raise SystemExit(f"Could not save image: {result_image}")
 
-lines = [f"Image: {image_path}", f"Detected {len(result.predictions)} card(s)"]
-for card in result.predictions:
+lines = [
+    f"Image: {image_path}",
+    f"Detected {len(detected)} card(s)",
+    f"Kept {len(cards)} after removing stacked boxes",
+]
+for card in cards:
     lines.append(
         f"{card.class_name}: {card.confidence:.1%} "
         f"| center=({card.x:.0f}, {card.y:.0f}) "
