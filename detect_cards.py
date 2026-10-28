@@ -1,12 +1,13 @@
 import os
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
 import supervision as sv
 from dotenv import load_dotenv
 from inference import get_model
+
+from card import read_card
 
 load_dotenv()
 
@@ -51,50 +52,6 @@ def intersection_over_union(a, b) -> float:
     shared = shared_width * shared_height
     union = a.width * a.height + b.width * b.height - shared
     return shared / union
-
-
-RANKS = {"A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "JOKER"}
-SUITS = {
-    "C": "clubs",
-    "D": "diamonds",
-    "H": "hearts",
-    "S": "spades",
-}
-
-
-@dataclass
-class Card:
-    label: str
-    rank: str
-    suit: str | None
-    confidence: float
-    x: float
-    y: float
-    width: float
-    height: float
-
-
-def read_card(prediction) -> Card:
-    label = prediction.class_name.upper()
-    if label == "JOKER":
-        rank, suit = "JOKER", None
-    elif label.startswith("10") and label[2:] in SUITS:
-        rank, suit = "10", label[2:]
-    elif len(label) == 2 and label[0] in RANKS and label[1] in SUITS:
-        rank, suit = label[0], label[1]
-    else:
-        raise SystemExit(f"Unrecognized card label: {prediction.class_name}")
-
-    return Card(
-        label=label,
-        rank=rank,
-        suit=suit,
-        confidence=prediction.confidence,
-        x=prediction.x,
-        y=prediction.y,
-        width=prediction.width,
-        height=prediction.height,
-    )
 
 
 def clean_boxes(predictions, overlap_limit=0.5):
@@ -144,9 +101,8 @@ lines = [
     f"Kept {len(cards)} after removing stacked boxes",
 ]
 for card in cards:
-    suit = SUITS[card.suit] if card.suit else "none"
     lines.append(
-        f"{card.label} → rank {card.rank}, suit {suit} "
+        f"{card.label} → rank {card.rank}, suit {card.suit_name} "
         f"| {card.confidence:.1%} "
         f"| center=({card.x:.0f}, {card.y:.0f}) "
         f"| size={card.width:.0f}x{card.height:.0f}"
