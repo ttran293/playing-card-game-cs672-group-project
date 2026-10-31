@@ -1,0 +1,6 @@
+2S | confidence 0.842 | center (994.5,857.2) | size 103.5x265.5
+KS | confidence 0.802 | center (1496.2,1823.6) | size 157.5x285.8
+KS | confidence 0.791 | center (1174.5,907.9) | size 153.0x281.2
+6H | confidence 0.782 | center (850.5,868.5) | size 99.0x252.0
+4D | confidence 0.781 | center (713.2,895.5) | size 108.0x256.5
+KC | confidence 0.519 | center (571.5,945.0) | size 162.0x270.0

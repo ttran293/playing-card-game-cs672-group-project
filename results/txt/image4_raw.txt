@@ -1,0 +1,3 @@
+5C | confidence 0.773 | center (686.2,801.0) | size 175.5x445.5
+5C | confidence 0.772 | center (1669.5,2181.4) | size 153.0x407.2
+7H | confidence 0.765 | center (448.9,806.6) | size 195.8x438.8

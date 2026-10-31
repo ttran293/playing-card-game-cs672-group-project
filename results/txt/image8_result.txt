@@ -1,0 +1,16 @@
+Image: images\image8.jpg
+Raw detections: 16
+Kept detections: 9
+Clusters: 2
+  Cluster 1 (4 card(s)): QS, JH, JS, 5D
+  Cluster 2 (5 card(s)): JD, JS, 10D, 2S, KD
+
+QS -> rank Q, suit spades | confidence 69.6% | center (636,717) | size 101x164
+JD -> rank J, suit diamonds | confidence 71.2% | center (1966,849) | size 130x146
+JH -> rank J, suit hearts | confidence 68.1% | center (518,711) | size 104x171
+JS -> rank J, suit spades | confidence 36.5% | center (1569,720) | size 97x171
+JS -> rank J, suit spades | confidence 58.2% | center (716,722) | size 130x180
+5D -> rank 5, suit diamonds | confidence 52.7% | center (393,753) | size 115x178
+10D -> rank 10, suit diamonds | confidence 36.6% | center (1667,731) | size 94x171
+2S -> rank 2, suit spades | confidence 29.1% | center (1858,799) | size 122x153
+KD -> rank K, suit diamonds | confidence 13.4% | center (1778,745) | size 112x153

@@ -1,0 +1,11 @@
+Image: images\image3.jpg
+Raw detections: 6
+Kept detections: 5
+Clusters: 1
+  Cluster 1 (5 card(s)): 2S, KS, 6H, 4D, KC
+
+2S -> rank 2, suit spades | confidence 84.2% | center (994,857) | size 104x266
+KS -> rank K, suit spades | confidence 79.1% | center (1174,908) | size 153x281
+6H -> rank 6, suit hearts | confidence 78.2% | center (850,868) | size 99x252
+4D -> rank 4, suit diamonds | confidence 78.1% | center (713,896) | size 108x256
+KC -> rank K, suit clubs | confidence 51.9% | center (572,945) | size 162x270

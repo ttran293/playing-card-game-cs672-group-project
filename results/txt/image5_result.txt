@@ -1,0 +1,6 @@
+Image: images\image5.jpg
+Raw detections: 4
+Kept detections: 3
+7H -> rank 7, suit hearts | confidence 79.2% | center (500,1134) | size 130x364
+8D -> rank 8, suit diamonds | confidence 78.8% | center (1682,2239) | size 119x356
+5C -> rank 5, suit clubs | confidence 74.9% | center (677,1115) | size 122x358

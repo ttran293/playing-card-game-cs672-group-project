@@ -1,0 +1,4 @@
+7H | confidence 0.792 | center (499.5,1134.0) | size 130.5x364.5
+8D | confidence 0.788 | center (1681.9,2238.8) | size 119.2x355.5
+8D | confidence 0.765 | center (866.2,1129.5) | size 121.5x373.5
+5C | confidence 0.749 | center (677.2,1114.9) | size 121.5x357.8

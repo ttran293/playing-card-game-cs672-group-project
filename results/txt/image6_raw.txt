@@ -1,0 +1,7 @@
+8D | confidence 0.793 | center (614.2,1418.6) | size 148.5x303.8
+KH | confidence 0.766 | center (1788.8,2444.6) | size 157.5x326.2
+5C | confidence 0.761 | center (798.8,1356.8) | size 135.0x297.0
+KH | confidence 0.661 | center (1220.6,1399.5) | size 155.2x310.5
+2C | confidence 0.585 | center (403.9,1534.5) | size 209.2x292.5
+AC | confidence 0.145 | center (955.1,1330.9) | size 114.8x299.2
+4C | confidence 0.139 | center (954.0,1329.8) | size 117.0x297.0

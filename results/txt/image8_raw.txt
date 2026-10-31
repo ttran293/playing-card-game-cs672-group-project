@@ -1,0 +1,16 @@
+QS | confidence 0.780 | center (1015.9,1342.1) | size 132.8x177.8
+JD | confidence 0.772 | center (2030.6,1548.0) | size 132.8x153.0
+JD | confidence 0.712 | center (1966.5,849.4) | size 130.5x146.2
+QS | confidence 0.696 | center (635.6,716.6) | size 101.2x164.2
+JH | confidence 0.681 | center (517.5,711.0) | size 103.5x171.0
+JS | confidence 0.582 | center (715.5,722.2) | size 130.5x180.0
+5D | confidence 0.527 | center (392.6,752.6) | size 114.8x177.8
+QS | confidence 0.488 | center (715.5,724.5) | size 130.5x175.5
+10D | confidence 0.366 | center (1667.2,731.2) | size 94.5x171.0
+JS | confidence 0.365 | center (1569.4,720.0) | size 96.8x171.0
+2S | confidence 0.291 | center (1858.5,798.8) | size 121.5x153.0
+JD | confidence 0.256 | center (519.8,712.1) | size 103.5x173.2
+JS | confidence 0.210 | center (1015.9,1341.0) | size 132.8x175.5
+7D | confidence 0.159 | center (1966.5,848.2) | size 130.5x144.0
+KD | confidence 0.134 | center (1777.5,744.8) | size 112.5x153.0
+5H | confidence 0.124 | center (393.8,752.6) | size 117.0x177.8
