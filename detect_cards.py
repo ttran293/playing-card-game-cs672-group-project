@@ -2,6 +2,7 @@
 """
 Detect playing cards in an image using a pretrained Roboflow model.
 
+Large images are resized before processing to improve performance.
 The image is divided into overlapping tiles, and each tile is
 processed at multiple scales to help detect small card markings.
 Duplicate detections are removed before saving the results.
@@ -19,12 +20,16 @@ from inference import get_model
 
 from card import read_card
 
+
 load_dotenv()
 
 # Model settings
 MODEL_ID = "playing-cards-ow27d/4"
 CONFIDENCE_THRESHOLD = 0.1
 OVERLAP_LIMIT = 0.5
+
+# Image preprocessing settings
+MAX_IMAGE_DIMENSION = 1280
 
 # Tile settings. Smaller tiles help detect cards in larger table images.
 TILE_WIDTH = 200
@@ -33,11 +38,7 @@ TILE_OVERLAP = 0.30
 SCALES = (1.0, 2.0, 3.0)
 
 IMAGE_CANDIDATES = (
-    "ex_generated_image.png",
-    "ex_generated_image.jpg",
-    "ex_generated_image.jpeg",
-    "cards.png",
-    "cards.jpg",
+    "data/raw/Blackjack/IMG_0222.JPG",
 )
 
 
@@ -55,6 +56,33 @@ def resolve_image():
             return path
 
     raise SystemExit("No input image found.")
+
+
+def standardize_image(image):
+    """
+    Resize large images to a consistent maximum dimension.
+
+    Preserve the original aspect ratio and avoid enlarging
+    smaller images. The original image file is not modified.
+    """
+    height, width = image.shape[:2]
+
+    scale = min(
+        1.0,
+        MAX_IMAGE_DIMENSION / max(width, height),
+    )
+
+    if scale == 1.0:
+        return image
+
+    new_width = max(1, round(width * scale))
+    new_height = max(1, round(height * scale))
+
+    return cv2.resize(
+        image,
+        (new_width, new_height),
+        interpolation=cv2.INTER_AREA,
+    )
 
 
 def tile_positions(length, tile_size):
@@ -128,8 +156,8 @@ def detect_tiled(model, image):
     """
     Run card detection on overlapping tiles at multiple scales.
 
-    Detected coordinates are converted back to the original image
-    coordinates so they can be used for clustering later.
+    Detected coordinates are converted back to the standardized
+    image coordinates so they can be used for clustering later.
     """
     height, width = image.shape[:2]
 
@@ -166,7 +194,7 @@ def detect_tiled(model, image):
 
                 for prediction in result.predictions:
                     # Predictions are relative to the scaled tile.
-                    # Convert them back to the full image coordinates.
+                    # Convert them back to the standardized image coordinates.
                     prediction.x = prediction.x / scale + x
                     prediction.y = prediction.y / scale + y
                     prediction.width /= scale
@@ -181,7 +209,7 @@ def detect_tiled(model, image):
 
 
 def create_annotations(image, predictions):
-    """Draw bounding boxes and card labels on the original image."""
+    """Draw bounding boxes and card labels on the processed image."""
     boxes = []
 
     for p in predictions:
@@ -231,10 +259,17 @@ def main():
     if image is None:
         raise SystemExit(f"Could not read image: {image_path}")
 
+    # Record the original dimensions before preprocessing.
+    original_height, original_width = image.shape[:2]
+
+    # Standardize large images before running inference.
+    image = standardize_image(image)
+
     height, width = image.shape[:2]
 
     print(f"Image: {image_path}")
-    print(f"Resolution: {width}x{height}")
+    print(f"Original resolution: {original_width}x{original_height}")
+    print(f"Processing resolution: {width}x{height}")
     print(f"Tile size: {TILE_WIDTH}x{TILE_HEIGHT}")
 
     # Load the pretrained Roboflow model.
@@ -256,6 +291,8 @@ def main():
     # Build the text report containing the detected cards.
     lines = [
         f"Image: {image_path}",
+        f"Original resolution: {original_width}x{original_height}",
+        f"Processing resolution: {width}x{height}",
         f"Raw detections: {len(raw)}",
         f"Kept detections: {len(kept)}",
     ]
@@ -294,6 +331,7 @@ def main():
 
     # Keep raw predictions for debugging and later evaluation.
     raw_lines = []
+
     for p in raw:
         raw_lines.append(
             f"{p.class_name} "

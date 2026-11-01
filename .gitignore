@@ -1,5 +1,13 @@
+
+# Environment and credentials
 .env
 .venv/
+credentials.json
+token.json
+
+# Python generated files
 __pycache__/
 *.pyc
+
+# Downloaded dataset
 data/
