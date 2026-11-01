@@ -1,11 +1,12 @@
-
-# Playing Card Detection
+# Playing Card Detection and Game Classification
 
 CMSC 672 Computer Vision Group Project
 
 Detects and identifies playing cards in photographs using the pretrained Roboflow model `playing-cards-ow27d/4`.
 
-The program supports photographs of Blackjack, EZ Baccarat, and Pai Gow Poker. It automatically resizes large images, performs object detection using overlapping image tiles, removes duplicate detections, and saves annotated images and text reports.
+The program supports photographs of **Blackjack, EZ Baccarat, and Pai Gow Poker**. It automatically resizes large images, performs object detection using overlapping image tiles, removes duplicate detections, groups cards into spatial clusters, and uses rule-based classification to identify the game.
+
+The program saves annotated images and text reports containing detected cards, clusters, and game classifications.
 
 ## Requirements
 
@@ -14,7 +15,7 @@ The program supports photographs of Blackjack, EZ Baccarat, and Pai Gow Poker. I
 - Internet connection for setup and dataset downloads
 - Roboflow API key
 
-Python 3.14 is not supported by the project's inference dependencies.
+Python 3.14 is not supported by the project's current inference dependencies.
 
 ## 1. Clone the Repository
 
@@ -97,7 +98,7 @@ Replace `your_key_here` with your actual API key.
 
 The dataset is hosted on Google Drive rather than GitHub.
 
-**[Open the shared Google Drive dataset](https://drive.google.com/drive/folders/1PHnC9VpQLjnUSbdeKTIo35dhUNGg487V?usp=sharing)**
+[Open the shared Google Drive dataset](https://drive.google.com/drive/folders/1PHnC9VpQLjnUSbdeKTIo35dhUNGg487V?usp=sharing)
 
 It contains photographs organized into three categories:
 
@@ -118,9 +119,13 @@ playing-card-game-cs672-group-project/
 │       ├── Blackjack/
 │       ├── EZ-Baccarat/
 │       └── Pai-Gow-Poker/
+├── results/
+│   ├── images/
+│   └── txt/
 ├── setup.sh
 ├── download_dataset.py
 ├── detect_cards.py
+├── game_classifier.py
 ├── card.py
 ├── requirements.txt
 └── README.md
@@ -144,7 +149,7 @@ iPhone HEIC/HEIF photographs are automatically converted to JPEG for compatibili
 
 **Dataset synchronization occurs during setup, not during normal detection runs.**
 
-## 5. Run Card Detection
+## 5. Run Card Detection and Classification
 
 After setup and API key configuration, run `detect_cards.py`.
 
@@ -192,15 +197,17 @@ When the script runs without an image argument, it uses the first existing image
 
 A command-line image path overrides the default selection.
 
-## 6. Image Processing
+## 6. Image Processing Pipeline
 
-The detection pipeline performs the following operations:
+The program performs the following operations:
 
-1. **Image resizing:** Images larger than 1280 pixels on their longest side are reduced while preserving their aspect ratio. Smaller images are not enlarged.
+1. **Image resizing:** Images larger than 1280 pixels on their longest side are reduced while preserving their aspect ratio.
 2. **Tiled inference:** The image is divided into overlapping tiles to help identify small card markings.
 3. **Multiscale detection:** Tiles are processed at multiple scales using the Roboflow model.
-4. **Duplicate removal:** Overlapping predictions are filtered using Intersection over Union (IoU).
-5. **Output generation:** Bounding boxes, card labels, confidence scores, and position information are saved.
+4. **Duplicate removal:** Overlapping predictions are filtered using Intersection over Union (IoU), followed by additional filtering of nearby duplicate card labels.
+5. **Card clustering:** Detected cards are grouped into spatial clusters using DBSCAN.
+6. **Game classification:** The number of cards in each cluster is analyzed to determine the game.
+7. **Output generation:** Annotated images and text reports are saved.
 
 The original input photographs are not modified.
 
@@ -208,7 +215,72 @@ Detection coordinates refer to the resized processing image when resizing occurs
 
 The first detection run may take additional time because the pretrained model must be downloaded. Inference may be slower on systems using CPU processing rather than GPU acceleration.
 
-## 7. Output Files
+## 7. Card Clustering
+
+The program uses **DBSCAN (Density-Based Spatial Clustering of Applications with Noise)** to group detected cards based on their positions in the image.
+
+Card coordinates are normalized relative to image dimensions before clustering.
+
+The current implementation uses:
+
+```python
+DBSCAN(eps=0.112, min_samples=1)
+```
+
+The `eps` parameter controls the maximum neighborhood distance between detected cards. The `min_samples=1` setting ensures every detected card is assigned to a cluster.
+
+Each cluster represents a group of nearby cards, which can correspond to a player's hand or a dealer's hand.
+
+Clusters are assigned numeric IDs and displayed using different colors in the annotated output.
+
+**Current limitation:** Hands positioned close together may be merged into a single cluster, while cards positioned far apart may be separated incorrectly. Clustering parameters may require further refinement for different table layouts.
+
+## 8. Game Classification
+
+The initial game classifier uses **rule-based logic** rather than a trained neural network.
+
+It analyzes the number of detected clusters and the number of cards in each cluster.
+
+The current classification rules are evaluated in the following order:
+
+| Game | Classification Rule |
+|---|---|
+| Pai Gow Poker | At least two seven-card clusters, or at least two five-card clusters and two two-card clusters |
+| EZ Baccarat | Exactly two clusters, each containing two or three cards |
+| Blackjack | At least two clusters, with no more than one single-card cluster |
+| Unknown | None of the above conditions are satisfied |
+
+The Blackjack rule allows one single-card cluster because the dealer's face-up card may overlap the face-down card, making two physical cards appear as one detection.
+
+The classifier returns one of four labels:
+
+- `Blackjack`
+- `EZ Baccarat`
+- `Pai Gow Poker`
+- `Unknown`
+
+### Example Classification Output
+
+```text
+Clusters: 2
+Detected game: EZ Baccarat
+  Cluster 1 (2 card(s)): 4H, 6C
+  Cluster 2 (3 card(s)): 3H, QD, 3D
+```
+
+The game classification is displayed in the terminal and included in the saved text report.
+
+### Current Limitations
+
+The rule-based classifier depends on accurate card detection and clustering.
+
+Missing cards, duplicate detections, incorrect card labels, and merged clusters can cause incorrect classifications.
+
+Some Blackjack and Baccarat layouts may also have similar cluster structures.
+
+Future development may include training a machine-learning classifier using labeled photographs from the three game categories.
+
+## 9. Output Files
 
 For an input photograph named:
 
@@ -216,19 +288,21 @@ For an input photograph named:
 IMG_0221.JPG
 ```
 
-The program creates three files in the same directory:
+The program creates three files:
 
-| Output File | Description |
-|---|---|
-| `IMG_0221_result.png` | Annotated image with detected card bounding boxes and labels |
-| `IMG_0221_result.txt` | Detected cards, ranks, suits, confidence scores, coordinates, and dimensions |
-| `IMG_0221_raw.txt` | Raw model predictions before duplicate removal |
+| Output File | Location | Description |
+|---|---|---|
+| `IMG_0221_result.png` | `results/images/` | Annotated image with card labels, bounding boxes, and cluster IDs |
+| `IMG_0221_result.txt` | `results/txt/` | Game classification, clusters, card labels, confidence scores, and coordinates |
+| `IMG_0221_raw.txt` | `results/txt/` | Raw model predictions before duplicate removal |
 
-These outputs can be used for debugging, evaluation, and later stages of the project, including card clustering and game identification.
+These outputs can be used for debugging, evaluation, and later stages of the project, including game-specific hand evaluation and winner determination.
 
-## 8. Git and Dataset Files
+**Note:** Images with identical filenames from different dataset folders currently produce the same output filenames and may overwrite previous results.
 
-**Do not commit dataset photographs, model outputs, virtual environments, or API keys to GitHub.**
+## 10. Git and Dataset Files
+
+**Do not commit dataset photographs, generated model outputs, virtual environments, or API keys to GitHub.**
 
 Make sure `.gitignore` contains:
 
@@ -238,6 +312,7 @@ Make sure `.gitignore` contains:
 __pycache__/
 *.pyc
 data/
+results/
 ```
 
 The dataset remains on Google Drive, and each team member downloads their own local copy using `setup.sh`.
@@ -279,3 +354,15 @@ Filenames are case-sensitive on Linux and commonly on macOS.
 The program uses multiple overlapping tiles and inference scales.
 
 CPU-only processing can take longer than GPU processing.
+
+### Incorrect Game Classification
+
+Check the detected card labels and cluster sizes in the output text report.
+
+Incorrect classifications may result from duplicate card detections, missing cards, or clusters that combine multiple hands.
+
+### Inference Warnings
+
+The inference library may display warnings about optional models, deprecated features, or unavailable GPU providers.
+
+These warnings do not necessarily prevent the playing-card detection model from running.

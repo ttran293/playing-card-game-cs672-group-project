@@ -19,6 +19,7 @@ import supervision as sv
 from dotenv import load_dotenv
 from inference import get_model
 from sklearn.cluster import DBSCAN
+from game_classifier import classify_game
 
 from card import read_card
 
@@ -28,7 +29,7 @@ load_dotenv()
 # Model settings
 MODEL_ID = "playing-cards-ow27d/4"
 CONFIDENCE_THRESHOLD = 0.1
-OVERLAP_LIMIT = 0.5
+OVERLAP_LIMIT = 0.25
 
 # Image preprocessing settings
 MAX_IMAGE_DIMENSION = 1280
@@ -44,7 +45,7 @@ SCALES = (1.0, 2.0, 3.0)
 MAX_INFERENCE_DIM = 1280
 
 IMAGE_CANDIDATES = (
-    "data/raw/Blackjack/IMG_0222.JPG",
+    "data/raw/Pai-Gow-Poker/IMG_0224.JPG",
 )
 
 
@@ -170,7 +171,7 @@ def deduplicate(predictions):
     if not predictions:
         return []
     avg_size = sum(max(p.width, p.height) for p in predictions) / len(predictions)
-    eps = avg_size * 5.0
+    eps = avg_size * 8.0
 
     by_label = {}
     for pred in predictions:
@@ -208,7 +209,7 @@ def cluster_cards(predictions, image_width, image_height):
         for p in predictions
     ])
 
-    labels = DBSCAN(eps=0.15, min_samples=1).fit_predict(coords)
+    labels = DBSCAN(eps=0.112, min_samples=1).fit_predict(coords)
     return labels.tolist()
 
 
@@ -360,6 +361,12 @@ def main():
 
     # Remove overlapping boxes, then collapse same-label near-duplicates.
     kept = deduplicate(clean_boxes(raw))
+    for p in kept:
+        print(
+            f"{p.class_name}: "
+            f"({p.x:.0f}, {p.y:.0f}) "
+            f"size={p.width:.0f}x{p.height:.0f}"
+        )
 
     # Cluster cards spatially.
     cluster_ids = cluster_cards(kept, width, height)
@@ -374,6 +381,9 @@ def main():
     for pred, cid in zip(kept, cluster_ids):
         clusters.setdefault(cid, []).append(read_card(pred))
 
+    game = classify_game(clusters)
+    print(f"Detected game: {game}")
+
     # Build the text report.
     lines = [
         f"Image: {image_path}",
@@ -382,6 +392,7 @@ def main():
         f"Raw detections: {len(raw)}",
         f"Kept detections: {len(kept)}",
         f"Clusters: {n_clusters}",
+        f"Detected game: {game}",
     ]
 
     for cid in sorted(clusters):
