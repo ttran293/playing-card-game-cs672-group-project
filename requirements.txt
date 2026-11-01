@@ -8,3 +8,4 @@ supervision
 gdown
 Pillow
 pillow-heif
+scikit-learn

@@ -8,6 +8,7 @@ processed at multiple scales to help detect small card markings.
 Duplicate detections are removed before saving the results.
 """
 
+import math
 import os
 import sys
 from pathlib import Path
@@ -17,6 +18,7 @@ import numpy as np
 import supervision as sv
 from dotenv import load_dotenv
 from inference import get_model
+from sklearn.cluster import DBSCAN
 
 from card import read_card
 
@@ -36,6 +38,10 @@ TILE_WIDTH = 200
 TILE_HEIGHT = 160
 TILE_OVERLAP = 0.30
 SCALES = (1.0, 2.0, 3.0)
+
+# Images larger than this (on their longest side) are downscaled before
+# tiling so the tile parameters stay consistent across all image sizes.
+MAX_INFERENCE_DIM = 1280
 
 IMAGE_CANDIDATES = (
     "data/raw/Blackjack/IMG_0222.JPG",
@@ -152,19 +158,92 @@ def clean_boxes(predictions):
     return kept
 
 
+def deduplicate(predictions):
+    """
+    Remove near-duplicate detections of the same card label.
+
+    Within each label group, detections whose centers are within
+    half a card-width of an already-kept detection are dropped
+    (same corner seen twice). Detections far apart with the same
+    label are kept (two physical cards of the same type).
+    """
+    if not predictions:
+        return []
+    avg_size = sum(max(p.width, p.height) for p in predictions) / len(predictions)
+    eps = avg_size * 5.0
+
+    by_label = {}
+    for pred in predictions:
+        by_label.setdefault(pred.class_name.upper(), []).append(pred)
+
+    kept = []
+    for preds in by_label.values():
+        # Sort by y ascending so the topmost corner is preferred when
+        # collapsing face-card duplicate detections (top vs bottom corner).
+        # Use confidence as a tiebreaker for detections at similar y.
+        ordered = sorted(preds, key=lambda p: (p.y, -p.confidence))
+        label_kept = []
+        for pred in ordered:
+            if any(math.hypot(pred.x - k.x, pred.y - k.y) < eps for k in label_kept):
+                continue
+            label_kept.append(pred)
+        kept.extend(label_kept)
+    return kept
+
+
+def cluster_cards(predictions, image_width, image_height):
+    """
+    Group detected cards into spatial clusters using DBSCAN.
+
+    Coordinates are normalized to [0, 1] so eps is resolution-independent.
+    min_samples=1 ensures every card belongs to a cluster.
+
+    Returns a list of cluster IDs, one per prediction (same order).
+    """
+    if not predictions:
+        return []
+
+    coords = np.array([
+        [p.x / image_width, p.y / image_height]
+        for p in predictions
+    ])
+
+    labels = DBSCAN(eps=0.15, min_samples=1).fit_predict(coords)
+    return labels.tolist()
+
+
 def detect_tiled(model, image):
     """
-    Run card detection on overlapping tiles at multiple scales.
+    Run card detection on the image.
 
-    Detected coordinates are converted back to the standardized
-    image coordinates so they can be used for clustering later.
+    Large images are downscaled to MAX_INFERENCE_DIM on the longest side
+    before inference so the model receives a consistent resolution.
+    Detected coordinates are scaled back to the original image size.
     """
     height, width = image.shape[:2]
 
     x_positions = tile_positions(width, TILE_WIDTH)
     y_positions = tile_positions(height, TILE_HEIGHT)
 
+    longest = max(width, height)
+    if longest > MAX_INFERENCE_DIM:
+        pre_scale = MAX_INFERENCE_DIM / longest
+        infer_image = cv2.resize(
+            image, None, fx=pre_scale, fy=pre_scale, interpolation=cv2.INTER_AREA
+        )
+    else:
+        pre_scale = 1.0
+        infer_image = image
+
+    result = model.infer(infer_image, confidence=CONFIDENCE_THRESHOLD)[0]
+
     predictions = []
+    for prediction in result.predictions:
+        prediction.x /= pre_scale
+        prediction.y /= pre_scale
+        prediction.width /= pre_scale
+        prediction.height /= pre_scale
+        predictions.append(prediction)
 
     for scale in SCALES:
         count = 0
@@ -208,12 +287,11 @@ def detect_tiled(model, image):
     return predictions
 
 
-def create_annotations(image, predictions):
-    """Draw bounding boxes and card labels on the processed image."""
-    boxes = []
 
+def create_annotations(image, predictions, cluster_ids):
+    """Draw bounding boxes and card labels color-coded by cluster."""
+    boxes = []
     for p in predictions:
-        # Convert center coordinates to bounding box corners.
         boxes.append([
             p.x - p.width / 2,
             p.y - p.height / 2,
@@ -221,27 +299,25 @@ def create_annotations(image, predictions):
             p.y + p.height / 2,
         ])
 
-    xyxy = np.array(
-        boxes, dtype=np.float32
-    ).reshape(-1, 4)
+    xyxy = np.array(boxes, dtype=np.float32).reshape(-1, 4)
+    class_id = np.array(cluster_ids, dtype=int)
 
-    detections = sv.Detections(xyxy=xyxy)
+    detections = sv.Detections(xyxy=xyxy, class_id=class_id)
 
     labels = [
-        f"{read_card(p).label} {p.confidence:.0%}"
-        for p in predictions
+        f"{read_card(p).label} {p.confidence:.0%} [C{cid + 1}]"
+        for p, cid in zip(predictions, cluster_ids)
     ]
 
-    # Use index-based colors since class IDs are not provided.
     annotated = sv.BoxAnnotator(
-        color_lookup=sv.ColorLookup.INDEX
+        color_lookup=sv.ColorLookup.CLASS
     ).annotate(
         scene=image.copy(),
         detections=detections,
     )
 
     annotated = sv.LabelAnnotator(
-        color_lookup=sv.ColorLookup.INDEX
+        color_lookup=sv.ColorLookup.CLASS
     ).annotate(
         scene=annotated,
         detections=detections,
@@ -282,24 +358,42 @@ def main():
 
     raw = detect_tiled(model, image)
 
-    # Remove duplicate predictions from overlapping tiles and scales.
-    kept = clean_boxes(raw)
+    # Remove overlapping boxes, then collapse same-label near-duplicates.
+    kept = deduplicate(clean_boxes(raw))
+
+    # Cluster cards spatially.
+    cluster_ids = cluster_cards(kept, width, height)
+    n_clusters = len(set(cluster_ids)) if cluster_ids else 0
 
     print(f"\nRaw detections: {len(raw)}")
     print(f"After duplicate removal: {len(kept)}")
+    print(f"Clusters found: {n_clusters}")
 
-    # Build the text report containing the detected cards.
+    # Group cards by cluster for reporting.
+    clusters = {}
+    for pred, cid in zip(kept, cluster_ids):
+        clusters.setdefault(cid, []).append(read_card(pred))
+
+    # Build the text report.
     lines = [
         f"Image: {image_path}",
         f"Original resolution: {original_width}x{original_height}",
         f"Processing resolution: {width}x{height}",
         f"Raw detections: {len(raw)}",
         f"Kept detections: {len(kept)}",
+        f"Clusters: {n_clusters}",
     ]
 
+    for cid in sorted(clusters):
+        cards_in_cluster = clusters[cid]
+        card_labels = ", ".join(c.label for c in cards_in_cluster)
+        lines.append(
+            f"  Cluster {cid + 1} ({len(cards_in_cluster)} card(s)): {card_labels}"
+        )
+
+    lines.append("")
     for p in kept:
         card = read_card(p)
-
         lines.append(
             f"{card.label} -> rank {card.rank}, "
             f"suit {card.suit_name} "
@@ -308,18 +402,16 @@ def main():
             f"| size {card.width:.0f}x{card.height:.0f}"
         )
 
-    annotated = create_annotations(image, kept)
+    annotated = create_annotations(image, kept, cluster_ids)
 
-    # Save outputs using the input image's filename.
-    result_image = image_path.with_name(
-        f"{image_path.stem}_result.png"
-    )
-    result_text = image_path.with_name(
-        f"{image_path.stem}_result.txt"
-    )
-    raw_text = image_path.with_name(
-        f"{image_path.stem}_raw.txt"
-    )
+    # Save outputs to results/ subfolders.
+    results_dir = Path("results")
+    (results_dir / "images").mkdir(parents=True, exist_ok=True)
+    (results_dir / "txt").mkdir(parents=True, exist_ok=True)
+
+    result_image = results_dir / "images" / f"{image_path.stem}_result.png"
+    result_text = results_dir / "txt" / f"{image_path.stem}_result.txt"
+    raw_text = results_dir / "txt" / f"{image_path.stem}_raw.txt"
 
     if not cv2.imwrite(str(result_image), annotated):
         raise SystemExit(f"Could not save image: {result_image}")
