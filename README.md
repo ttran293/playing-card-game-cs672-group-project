@@ -1,5 +1,52 @@
 # Playing Card Detection and Game Classification
 
+## Quick command reference (Windows PowerShell)
+
+Run from the repository root. Backend and frontend servers use separate terminals.
+Requires Python 3.12, Node.js 22.12+ (or a supported newer LTS), and Git Bash.
+
+```powershell
+# First-time setup: Python environment, dependencies, and dataset download
+& "C:\Program Files\Git\bin\bash.exe" setup.sh
+
+# Create the local API-key file, then replace its placeholder with your key
+# Run this copy only if .env does not already exist
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
+
+# Install frontend dependencies
+npm --prefix frontend install
+
+# Terminal 1: start FastAPI (http://127.0.0.1:8000/docs)
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+
+# Terminal 2: start React (open the URL Vite prints)
+npm --prefix frontend run dev -- --host 127.0.0.1
+
+# Check backend health
+Invoke-RestMethod http://127.0.0.1:8000/api/health
+
+# Run detection using the default image
+.\.venv\Scripts\python.exe -m backend.app.detect_cards
+
+# Run detection on a specific photo
+.\.venv\Scripts\python.exe -m backend.app.detect_cards "data/raw/Blackjack/IMG_0221.JPG"
+
+# Synchronize the shared photo dataset
+.\.venv\Scripts\python.exe scripts/download_dataset.py
+
+# Install/update Python dependencies without downloading the dataset
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+
+# Build the frontend for deployment
+npm --prefix frontend run build
+
+# Stop either running server: Ctrl+C in its terminal
+```
+
+The frontend currently shows a starter page; image analysis is available through
+the detection command above. Outputs are saved under `results/images/` and `results/txt/`.
+
 CMSC 672 Computer Vision Group Project
 
 Detects and identifies playing cards in photographs using the pretrained Roboflow model `playing-cards-ow27d/4`.
