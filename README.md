@@ -95,6 +95,10 @@ project/
 
 ## Using the web app
 
+### Frontend
+
+![Card detection frontend showing an uploaded image, detection controls, and results](docs/screenshots/frontend.png)
+
 1. Start FastAPI and Vite using the commands above.
 2. Open the local URL printed by Vite.
 3. Upload a JPEG, PNG, or WebP image, or select **Open camera** and **Take photo**.
