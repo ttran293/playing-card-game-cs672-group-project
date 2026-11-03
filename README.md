@@ -103,7 +103,7 @@ The dataset is hosted on Google Drive rather than GitHub.
 It contains photographs organized into three categories:
 
 - `Blackjack`
-- `EZ-Baccarat`
+- `Baccarat`
 - `Pai-Gow-Poker`
 
 The setup script automatically downloads the dataset into `data/raw/`.
@@ -112,22 +112,26 @@ The setup script automatically downloads the dataset into `data/raw/`.
 
 ```text
 playing-card-game-cs672-group-project/
-├── .venv/
-├── .env
-├── data/
-│   └── raw/
-│       ├── Blackjack/
-│       ├── EZ-Baccarat/
-│       └── Pai-Gow-Poker/
-├── results/
-│   ├── images/
-│   └── txt/
+├── backend/
+│   ├── app/
+│   │   ├── main.py              # FastAPI entry point (/api/health)
+│   │   ├── detect_cards.py      # Current detection and DBSCAN pipeline
+│   │   ├── card.py
+│   │   ├── game_classifier.py
+│   │   └── hands.py             # Experimental alternative grouping
+│   └── requirements.txt
+├── frontend/                   # React + JavaScript + Vite
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.js
+├── scripts/                    # Dataset download tools
+├── evaluation/                 # Offline grouping evaluation
+├── examples/                   # Existing sample images and outputs
+├── data/raw/                   # Downloaded photos (ignored)
+├── results/                    # Generated analysis (ignored)
+├── .env.example
+├── requirements.txt            # Includes backend requirements
 ├── setup.sh
-├── download_dataset.py
-├── detect_cards.py
-├── game_classifier.py
-├── card.py
-├── requirements.txt
 └── README.md
 ```
 
@@ -158,13 +162,13 @@ After setup and API key configuration, run `detect_cards.py`.
 Run using the default image:
 
 ```powershell
-.\.venv\Scripts\python.exe detect_cards.py
+.\.venv\Scripts\python.exe -m backend.app.detect_cards
 ```
 
 Or process a specific image:
 
 ```powershell
-.\.venv\Scripts\python.exe detect_cards.py "data/raw/Blackjack/IMG_0221.JPG"
+.\.venv\Scripts\python.exe -m backend.app.detect_cards "data/raw/Blackjack/IMG_0221.JPG"
 ```
 
 ### Linux and macOS
@@ -172,20 +176,20 @@ Or process a specific image:
 Run using the default image:
 
 ```bash
-./.venv/bin/python detect_cards.py
+./.venv/bin/python -m backend.app.detect_cards
 ```
 
 Or process a specific image:
 
 ```bash
-./.venv/bin/python detect_cards.py "data/raw/Blackjack/IMG_0221.JPG"
+./.venv/bin/python -m backend.app.detect_cards "data/raw/Blackjack/IMG_0221.JPG"
 ```
 
 Replace `IMG_0221.JPG` with the name of an existing photograph.
 
 ### Selecting a Default Image
 
-You can specify a default image directly in `detect_cards.py` by modifying `IMAGE_CANDIDATES`:
+You can specify a default image directly in `backend/app/detect_cards.py` by modifying `IMAGE_CANDIDATES`:
 
 ```python
 IMAGE_CANDIDATES = (
@@ -366,3 +370,47 @@ Incorrect classifications may result from duplicate card detections, missing car
 The inference library may display warnings about optional models, deprecated features, or unavailable GPU providers.
 
 These warnings do not necessarily prevent the playing-card detection model from running.
+## Local web development
+
+The web application currently has a React shell and a FastAPI health endpoint.
+Image upload and analysis endpoints have not been implemented yet.
+Run commands from the repository root unless noted otherwise.
+
+Install backend dependencies (Python 3.12):
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+```
+
+Start the API in one terminal:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+API documentation: http://127.0.0.1:8000/docs
+
+Install Node.js 22.12+ (or a supported newer LTS). In a second terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open the local URL printed by Vite (normally http://localhost:5173).
+Vite forwards `/api` requests to the local FastAPI server.
+Run `npm run build` inside `frontend` to create `frontend/dist`.
+On Linux/macOS, replace `.\.venv\Scripts\python.exe` with `./.venv/bin/python`.
+
+Dataset utilities now live under `scripts/`:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/download_dataset.py
+.\.venv\Scripts\python.exe scripts/download_blackjack.py
+```
+
+`evaluation/check_clusters.py` is an experimental legacy evaluator, separate from
+DBSCAN in the current pipeline. It requires the missing `card_from_corners`
+adapter and labeled local blackjack images before it can run. It is not part of
+web startup or the main detection command.

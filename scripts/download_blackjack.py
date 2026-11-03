@@ -3,10 +3,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 from huggingface_hub import hf_hub_download
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 REPO_ID = "JackFurby/blackjack"
-DEST = Path(__file__).resolve().parent / "data" / "blackjack"
+DEST = Path(__file__).resolve().parents[1] / "data" / "blackjack"
 FILES = [
     "splits/mixed_ace_seven/classes.txt",
     "splits/mixed_ace_seven/concepts.txt",

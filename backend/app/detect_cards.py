@@ -19,12 +19,13 @@ import supervision as sv
 from dotenv import load_dotenv
 from inference import get_model
 from sklearn.cluster import DBSCAN
-from game_classifier import classify_game
+from .game_classifier import classify_game
 
-from card import read_card
+from .card import read_card
 
 
-load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(PROJECT_ROOT / ".env")
 
 # Model settings
 MODEL_ID = "playing-cards-ow27d/4"
@@ -58,7 +59,7 @@ def resolve_image():
         return path
 
     for name in IMAGE_CANDIDATES:
-        path = Path(name)
+        path = PROJECT_ROOT / name
         if path.is_file():
             return path
 
@@ -416,7 +417,7 @@ def main():
     annotated = create_annotations(image, kept, cluster_ids)
 
     # Save outputs to results/ subfolders.
-    results_dir = Path("results")
+    results_dir = PROJECT_ROOT / "results"
     (results_dir / "images").mkdir(parents=True, exist_ok=True)
     (results_dir / "txt").mkdir(parents=True, exist_ok=True)
 

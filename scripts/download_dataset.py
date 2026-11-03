@@ -16,7 +16,7 @@ from pillow_heif import register_heif_opener
 
 register_heif_opener()
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data" / "raw"
 
 FOLDER_ID = "1PHnC9VpQLjnUSbdeKTIo35dhUNGg487V"

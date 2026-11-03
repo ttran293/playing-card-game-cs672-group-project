@@ -1,11 +1,1 @@
-
-inference==1.7.2
-python-dotenv
-huggingface_hub
-opencv-python
-numpy
-supervision
-gdown
-Pillow
-pillow-heif
-scikit-learn
+-r backend/requirements.txt

@@ -1,6 +1,8 @@
 
 # Environment and credentials
 .env
+.env.*
+!.env.example
 .venv/
 credentials.json
 token.json
@@ -8,10 +10,20 @@ token.json
 # Python generated files
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
 
 # Downloaded dataset
 data/
 
 # Local results
 results/
-images/
+/images/
+examples/*_result.png
+examples/*_result.txt
+examples/*_raw.txt
+
+# Frontend build and dependencies
+node_modules/
+frontend/dist/
+*.log

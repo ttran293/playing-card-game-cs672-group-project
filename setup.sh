@@ -55,24 +55,24 @@ echo "Using Python:"
 echo ""
 echo "Installing Python dependencies..."
 
-"$VENV_PYTHON" -m pip install -r requirements.txt
+"$VENV_PYTHON" -m pip install -r backend/requirements.txt
 
 # Create the local dataset directories.
 echo ""
 echo "Creating dataset directories..."
 
 mkdir -p "data/raw/Blackjack"
-mkdir -p "data/raw/EZ-Baccarat"
+mkdir -p "data/raw/Baccarat"
 mkdir -p "data/raw/Pai-Gow-Poker"
 
 # Download the shared dataset.
 echo ""
 echo "Synchronizing Google Drive dataset..."
 
-if [ -f "download_dataset.py" ]; then
-    "$VENV_PYTHON" download_dataset.py
+if [ -f "scripts/download_dataset.py" ]; then
+    "$VENV_PYTHON" scripts/download_dataset.py
 else
-    echo "ERROR: download_dataset.py not found."
+    echo "ERROR: scripts/download_dataset.py not found."
     exit 1
 fi
 
