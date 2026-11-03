@@ -1,10 +1,7 @@
-"""HTTP entry point. Detection remains available through its CLI module."""
-
 from fastapi import FastAPI
 
+from .routes import detection, health
+
 app = FastAPI(title="Playing Card Analysis")
-
-
-@app.get("/api/health")
-async def health():
-    return {"status": "ok"}
+app.include_router(health.router, prefix="/api")
+app.include_router(detection.router, prefix="/api")

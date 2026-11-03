@@ -2,8 +2,8 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from backend.app.card import card_from_corners
-from backend.app.hands import blackjack_hands
+from backend.app.logic.card import card_from_corners
+from backend.app.logic.hands import blackjack_hands
 
 ROOT = Path(__file__).resolve().parents[1] / "data" / "blackjack"
 SPLIT = ROOT / "splits" / "mixed_ace_seven"

@@ -24,7 +24,7 @@ from .game_classifier import classify_game
 from .card import read_card
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(PROJECT_ROOT / ".env")
 
 # Model settings
